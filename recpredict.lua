@@ -1,7 +1,6 @@
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local character = game.Players.LocalPlayer.Character
-_G.Active = true
 
 -- Função para criar uma nova Part e retorná-la
 local function createPart()
