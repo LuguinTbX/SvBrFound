@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krunker Console</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      color: #333;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    #jogo {
+      border: none;
+      margin: 20px auto;
+      display: block;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    #status {
+      font-size: 1.2em;
+      margin: 20px 0;
+      color: #007bff;
+    }
+    button {
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1em;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+  <script>
+    // Function to update status message
+    function atualizarStatus(mensagem) {
+    const statusElement = document.getElementById("status");
+    if (statusElement) {
+        statusElement.textContent = mensagem;
+    } else {
+        console.error("Element with ID 'status' not found.");
+    }
+    }
+
+    // Check for gamepad connection/disconnection
+    window.addEventListener("gamepadconnected", (event) => {
+      const gamepad = event.gamepad;
+      atualizarStatus(`Gamepad conectado: ${gamepad.id}`);
+      console.log("Gamepad conectado:", gamepad);
+    });
+
+    window.addEventListener("gamepaddisconnected", (event) => {
+      atualizarStatus("Nenhum gamepad conectado.");
+      console.log("Gamepad desconectado:", event.gamepad);
+    });
+
+    // Check for gamepads on page load and every second
+    function verificarGamepads() {
+    // ...
+    setTimeout(() => {
+        const statusElement = document.getElementById("status");
+        if (statusElement) {
+            atualizarStatus("Nenhum gamepad conectado.");
+        } else {
+            console.error("Element with ID 'status' not found.");
+        }
+    }, 100); // Adjust the delay as needed
+}
+    verificarGamepads();
+    setInterval(verificarGamepads, 1000);
+
+    // Function to enter fullscreen mode (supports various browsers)
+    function forcarFullscreen() {
+      const iframe = document.getElementById("jogo");
+      const requestFullscreen = iframe.requestFullscreen ||
+                               iframe.mozRequestFullScreen ||
+                               iframe.webkitRequestFullscreen ||
+                               iframe.msRequestFullscreen;
+      if (requestFullscreen) {
+        requestFullscreen.call(iframe);
+      } else {
+        alert("O navegador não suporta a API de Fullscreen.");
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <p id="loading">Carregando o jogo...</p>
+    <iframe src="https://krunker.io/?game=BRZ:6c3rm" width="800" height="600" id="jogo" onload="document.getElementById('loading').style.display = 'none';"></iframe>
+    <h1>Status do Controle</h1>
+    <p id="status">Nenhum controle conectado.</p>
+    <button onclick="forcarFullscreen()">Tela Cheia</button>
+  </div
