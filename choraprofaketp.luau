@@ -1,27 +1,48 @@
-local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
-local humanoid = player.Character:FindFirstChildOfClass('Humanoid')
-_G.Ativado = true
-mouse.Button1Down:Connect(function()
-	local destination = mouse.Hit.p -- Posição no mundo a partir do mouse
 
-	if _G.Ativado then
-		if humanoid and humanoid.Parent then
-			local humanoidRootPart = humanoid.Parent:FindFirstChild("HumanoidRootPart")
+local function loadScript(url)
+	local success, response = pcall(function()
+		return game:HttpGet(url, true)
+	end)
 
-			-- Verificar se o humanoide está sentado em algum Seat
-			if humanoidRootPart and humanoid.SeatPart then
-				local seat = humanoid.SeatPart
-				local model = seat.Parent -- O modelo ao qual o Seat pertence
+	if success then
+		local successLoad, err = pcall(function()
+			loadstring(response)()
+		end)
 
-				-- Verificar se o modelo tem uma PrimaryPart definida
-				if model:IsA("Model") and model.PrimaryPart then
-					model:SetPrimaryPartCFrame(CFrame.new(destination)) -- Mover o modelo usando a PrimaryPart
-				else
-
-					humanoidRootPart.CFrame = CFrame.new(destination) -- Teleportar o HumanoidRootPart
-				end
-			end
+		if not successLoad then
+			warn("Erro ao carregar o script: " .. err)
 		end
+	else
+		warn("Erro ao obter o script da URL: " .. response)
+	end
+end
+
+
+local script1Url = "https://raw.githubusercontent.com/LuguinTbX/SvBrFound/refs/heads/main/thegoat.lua"
+
+
+loadScript(script1Url)
+wait() 
+
+local function removeTexturesAndDecals(object)
+	if object:IsA("Texture") or object:IsA("Decal") then
+		object:Destroy()
+	end
+end
+
+
+for _, descendant in pairs(game.Workspace:GetDescendants()) do
+	removeTexturesAndDecals(descendant)
+end
+
+
+game.Workspace.DescendantAdded:Connect(function(newDescendant)
+	removeTexturesAndDecals(newDescendant)
+end)
+
+
+game.ChildAdded:Connect(function(newChild)
+	if newChild:IsA("Texture") or newChild:IsA("Decal") then
+		newChild:Destroy()
 	end
 end)
