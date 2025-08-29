@@ -1,68 +1,45 @@
 // Criado por Luguin
+let intervalo;
 
-const labelElement = document.querySelector("#rbx-running-games > div.container-header > div.server-list-options > div.checkbox > label");
+function verificarServidores() {
+    console.log("[DEBUG] Verificando servidores da página...");
 
-try {
-    let intervalo;
+    const servidores = document.querySelectorAll(".rbx-public-game-server-details.game-server-details");
+    let encontrou = false;
 
-    function verificarUnk(texto) {
-        const inputElement = document.querySelector("#rbx-running-games > div.btr-pager-holder.btr-server-pager > ul > li.btr-pager-mid > input");
-        if (texto.includes("Unknown") && inputElement) {
-            const inputValue = inputElement.value;
-            alert("Sv Br encontrado! Página: " + inputValue);
-            clearInterval(intervalo);  
-        } else {
-            const nextButton = document.querySelector("#rbx-running-games > div.btr-pager-holder.btr-server-pager > ul > li.btr-pager-next > button");
-            if (nextButton) {
-                nextButton.click();
+    servidores.forEach((servidor, index) => {
+        const status = servidor.querySelector(".rbx-public-game-server-status");
+        if (status) {
+            const texto = status.innerText;
+            const match = texto.match(/Region:\s*(.+)/);
+            const regiao = match ? match[1] : "Não encontrado";
+
+            console.log(`[Servidor ${index+1}] Região:`, regiao);
+
+            if (regiao === "Unknown") {
+                alert("server br pego");
+                clearInterval(intervalo);
+                encontrou = true;
             }
-            console.log("Nada encontrado.");
+        }
+    });
+
+
+    if (!encontrou) {
+        const nextButton = document.querySelector(".btr-pager-next button");
+        if (nextButton) {
+            console.log("[DEBUG] Nenhum servidor BR encontrado. Indo para a próxima página...");
+            nextButton.click();
+        } else {
+            console.warn("[DEBUG] Botão Next não encontrado. Pode ser a última página.");
+            clearInterval(intervalo);
         }
     }
-
-    function iniciarVerificacao() {
-        intervalo = setInterval(() => {
-            const textoAtualizado = document.body.innerText;
-            verificarUnk(textoAtualizado);
-        }, 1000);
-    }
-
-    function carregarEstiloExtensao(extensionId) {
-        return new Promise((resolve, reject) => {
-            const link = document.createElement('link');
-            link.href = `chrome-extension://${extensionId}/css/main.css`;  
-            link.rel = 'stylesheet';
-            link.onload = resolve;
-            link.onerror = () => reject(new Error("Extensão não instalada."));
-            document.head.appendChild(link);
-        });
-    }
-
-    function configurarCheckbox() {
-        if (labelElement && !labelElement.checked) {
-            labelElement.click();
-        }
-    }
-
-    async function iniciarScript() {
-        try {
-            await carregarEstiloExtensao('hbkpclpemjeibhioopcebchdmohaieln');
-            iniciarVerificacao();
-        } catch (error) {
-            alert(error.message);
-        }
-    }
-
-    if (sessionStorage.getItem('reloadAfterError') === 'true') {
-        sessionStorage.removeItem('reloadAfterError');
-        configurarCheckbox();
-    }
-
-    configurarCheckbox();
-    iniciarScript();
-
-} catch (error) {
-    alert("Ocorreu um erro, recarregando a página...");
-    sessionStorage.setItem('reloadAfterError', 'true');
-    location.reload(); 
 }
+
+function iniciarBusca() {
+    intervalo = setInterval(verificarServidores, 1500); 
+    console.log("[DEBUG] Busca iniciada...");
+}
+
+iniciarBusca();
