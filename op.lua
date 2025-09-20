@@ -1,13 +1,18 @@
 local player = game.Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+
 local boosting = false
 local boostPercent = 10
+local boostKey = Enum.KeyCode.F
 local originalVelocity = nil
 local guiVisible = true
+
+-- Criando GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "BoostGUI"
 screenGui.Parent = player:WaitForChild("PlayerGui")
+
 local boostLabel = Instance.new("TextLabel")
 boostLabel.Size = UDim2.new(0, 150, 0, 50)
 boostLabel.Position = UDim2.new(0.5, -75, 0.85, 0)
@@ -18,6 +23,7 @@ boostLabel.Font = Enum.Font.SourceSansBold
 boostLabel.TextScaled = true
 boostLabel.Text = "Boost: 0%"
 boostLabel.Parent = screenGui
+
 local boostBox = Instance.new("TextBox")
 boostBox.Size = UDim2.new(0, 100, 0, 30)
 boostBox.Position = UDim2.new(0.5, -50, 0.92, 0)
@@ -38,6 +44,24 @@ boostBox.FocusLost:Connect(function(enterPressed)
 		end
 	end
 end)
+
+
+local keyButton = Instance.new("TextButton")
+keyButton.Size = UDim2.new(0, 150, 0, 40)
+keyButton.Position = UDim2.new(0.5, -75, 0.78, 0)
+keyButton.BackgroundColor3 = Color3.fromRGB(70,70,70)
+keyButton.TextColor3 = Color3.fromRGB(255,255,255)
+keyButton.Font = Enum.Font.SourceSans
+keyButton.TextScaled = true
+keyButton.Text = "Boost Key: " .. boostKey.Name
+keyButton.Parent = screenGui
+
+local waitingForKey = false
+keyButton.MouseButton1Click:Connect(function()
+	waitingForKey = true
+	keyButton.Text = "Press a key..."
+end)
+
 local function getVehicle()
 	local character = player.Character
 	if not character then return nil end
@@ -47,65 +71,75 @@ local function getVehicle()
 	end
 	return nil
 end
+
 local renderConn
 local boostProgress = 0.1
 local function boostCar(seat)
 	if not seat then return end
-	if renderConn then renderConn:Disconnect() end 
-	local lastPercent = -1 
-	renderConn = RunService.Heartbeat:Connect(function(dt)
-		if boosting and seat and seat.Parent then
-			if not originalVelocity then
-				originalVelocity = seat.AssemblyLinearVelocity
-			end
-			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
-			local boostMultiplier = 1 + (boostPercent / 100) * boostProgress
-			local currentVel = seat.AssemblyLinearVelocity
+
+
+	if not originalVelocity then
+		originalVelocity = seat.AssemblyLinearVelocity
+	end
+
+	
+	if not renderConn then
+		renderConn = RunService.Heartbeat:Connect(function(dt)
+			local vehicle = getVehicle()
+			if boosting and vehicle and vehicle.Parent then
+		
+				boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
+
+				
+				local boostMultiplier = 1 + (boostPercent / 100) * boostProgress
+
+				
+				local origSpeed = originalVelocity.Magnitude
+				local lookDir = vehicle.CFrame.LookVector
+				local currentVel = vehicle.AssemblyLinearVelocity
 
 			
-			local lookDirection = seat.CFrame.LookVector
-			local currentSpeed = currentVel.Magnitude
-			local originalSpeed = originalVelocity.Magnitude
+				local newVel = lookDir * origSpeed * boostMultiplier
+				vehicle.AssemblyLinearVelocity = Vector3.new(newVel.X, currentVel.Y, newVel.Z)
 
-			
-			local boostedSpeed = originalSpeed * boostMultiplier
-			local newVelocity = lookDirection * boostedSpeed
+				
+				local horizontalVel = Vector3.new(vehicle.AssemblyLinearVelocity.X, 0, vehicle.AssemblyLinearVelocity.Z).Magnitude
+				local originalHorVel = Vector3.new(originalVelocity.X, 0, originalVelocity.Z).Magnitude
+				local percent = 0
+				if originalHorVel > 0 then
+					percent = math.clamp((horizontalVel / originalHorVel - 1) * 100, 0, 999)
+				end
 
-
-			seat.AssemblyLinearVelocity = Vector3.new(
-				newVelocity.X,
-				currentVel.Y, 
-				newVelocity.Z
-			)
-
-			local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z).Magnitude
-			local originalHorVel = Vector3.new(originalVelocity.X, 0, originalVelocity.Z).Magnitude
-			local percent = 0
-			if originalHorVel > 0 then
-				percent = math.clamp((horizontalVel / originalHorVel - 1) * 100, 0, 999)
-			end
-			if math.floor(percent) ~= lastPercent then
-				boostLabel.Text = "Boost: " .. math.floor(percent) .. "%"
-				lastPercent = math.floor(percent)
-			end
-		else
-			boostProgress = 0
-			originalVelocity = nil
-			if lastPercent ~= 0 then
+				if math.floor(percent) ~= tonumber(boostLabel.Text:match("%d+")) then
+					boostLabel.Text = "Boost: " .. math.floor(percent) .. "%"
+				end
+			else
+				
+				boostProgress = 0
+				originalVelocity = nil
 				boostLabel.Text = "Boost: 0%"
-				lastPercent = 0
 			end
-		end
-	end)
+		end)
+	end
 end
-local function toggleGUI()
+
+function toggleGUI()
 	guiVisible = not guiVisible
 	boostLabel.Visible = guiVisible
 	boostBox.Visible = guiVisible
+	keyButton.Visible = guiVisible
 end
+
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if waitingForKey and input.UserInputType == Enum.UserInputType.Keyboard then
+		boostKey = input.KeyCode
+		keyButton.Text = "Boost Key: " .. boostKey.Name
+		waitingForKey = false
+		return
+	end
 	if gameProcessed then return end
-	if input.KeyCode == Enum.KeyCode.F then
+	if input.KeyCode == boostKey then
 		boosting = true
 		local vehicle = getVehicle()
 		if vehicle then
@@ -115,8 +149,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		toggleGUI()
 	end
 end)
+
 UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == Enum.KeyCode.F then
+	if input.KeyCode == boostKey then
 		boosting = false
 	end
-end) 
+end)
