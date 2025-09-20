@@ -58,10 +58,13 @@ local function getVehicle()
 	end
 	return nil
 end
+local renderConn
 
 local function boostCar(seat)
 	if not seat then return end
-	RunService.RenderStepped:Connect(function()
+	if renderConn then renderConn:Disconnect() end 
+
+	renderConn = RunService.RenderStepped:Connect(function()
 		if boosting and seat and seat.Parent then
 			if not originalVelocity then
 				originalVelocity = seat.AssemblyLinearVelocity
@@ -75,7 +78,6 @@ local function boostCar(seat)
 			)
 			seat.AssemblyLinearVelocity = boostVel
 
-
 			local horizontalVel = Vector3.new(seat.AssemblyLinearVelocity.X,0,seat.AssemblyLinearVelocity.Z).Magnitude
 			local originalHorVel = Vector3.new(originalVelocity.X,0,originalVelocity.Z).Magnitude
 			local percent = 0
@@ -83,15 +85,14 @@ local function boostCar(seat)
 				percent = math.clamp((horizontalVel/originalHorVel-1)*100,0,999)
 			end
 			boostLabel.Text = "Boost: "..math.floor(percent).."%"
-
-	
 		else
 			originalVelocity = nil
 			boostLabel.Text = "Boost: 0%"
-
 		end
 	end)
 end
+
+
 local function toggleGUI()
 	guiVisible = not guiVisible
 	boostLabel.Visible = guiVisible
