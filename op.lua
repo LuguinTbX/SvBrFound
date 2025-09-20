@@ -51,43 +51,66 @@ end)
 local function getVehicle()
 	local character = player.Character
 	if not character then return nil end
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:IsA("VehicleSeat") and v.Occupant == character:FindFirstChild("Humanoid") then
-			return v
-		end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
+		return humanoid.SeatPart
 	end
 	return nil
 end
 local renderConn
+local boostProgress = 0.1
 
 local function boostCar(seat)
 	if not seat then return end
 	if renderConn then renderConn:Disconnect() end 
 
-	renderConn = RunService.RenderStepped:Connect(function()
+	local lastPercent = -1 
+
+	renderConn = RunService.Heartbeat:Connect(function(dt)
+		
 		if boosting and seat and seat.Parent then
+		
 			if not originalVelocity then
 				originalVelocity = seat.AssemblyLinearVelocity
 			end
 
-			local boostMultiplier = 1 + boostPercent/100
-			local boostVel = Vector3.new(
-				originalVelocity.X * boostMultiplier,
-				seat.AssemblyLinearVelocity.Y,
-				originalVelocity.Z * boostMultiplier
-			)
-			seat.AssemblyLinearVelocity = boostVel
+		
+			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
 
-			local horizontalVel = Vector3.new(seat.AssemblyLinearVelocity.X,0,seat.AssemblyLinearVelocity.Z).Magnitude
-			local originalHorVel = Vector3.new(originalVelocity.X,0,originalVelocity.Z).Magnitude
+		
+			local boostMultiplier = 1 + (boostPercent / 100) * boostProgress
+
+		
+			local currentVel = seat.AssemblyLinearVelocity
+			local flatVel = Vector3.new(originalVelocity.X, 0, originalVelocity.Z)
+			local newFlat = flatVel * boostMultiplier
+
+			seat.AssemblyLinearVelocity = Vector3.new(
+				newFlat.X,
+				currentVel.Y, 
+				newFlat.Z
+			)
+
+			
+			local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z).Magnitude
+			local originalHorVel = flatVel.Magnitude
 			local percent = 0
 			if originalHorVel > 0 then
-				percent = math.clamp((horizontalVel/originalHorVel-1)*100,0,999)
+				percent = math.clamp((horizontalVel / originalHorVel - 1) * 100, 0, 999)
 			end
-			boostLabel.Text = "Boost: "..math.floor(percent).."%"
+
+			if math.floor(percent) ~= lastPercent then
+				boostLabel.Text = "Boost: " .. math.floor(percent) .. "%"
+				lastPercent = math.floor(percent)
+			end
 		else
+			
+			boostProgress = 0
 			originalVelocity = nil
-			boostLabel.Text = "Boost: 0%"
+			if lastPercent ~= 0 then
+				boostLabel.Text = "Boost: 0%"
+				lastPercent = 0
+			end
 		end
 	end)
 end
@@ -109,8 +132,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			boostCar(vehicle)
 		end
 	elseif input.KeyCode == Enum.KeyCode.V then
-		
-			toggleGUI()
+
+		toggleGUI()
 	end
 end)
 
