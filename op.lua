@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local boosting = false
 local boostPercent = 10
 local originalVelocity = nil
+local guiVisible = true
 
 
 local screenGui = Instance.new("ScreenGui")
@@ -35,7 +36,6 @@ boostBox.Text = tostring(boostPercent)
 boostBox.ClearTextOnFocus = false
 boostBox.Parent = screenGui
 
--- Atualiza boostPercent quando digita
 boostBox.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
 		local value = tonumber(boostBox.Text)
@@ -51,7 +51,6 @@ end)
 local function getVehicle()
 	local character = player.Character
 	if not character then return nil end
-
 	for _, v in pairs(workspace:GetDescendants()) do
 		if v:IsA("VehicleSeat") and v.Occupant == character:FindFirstChild("Humanoid") then
 			return v
@@ -60,10 +59,8 @@ local function getVehicle()
 	return nil
 end
 
-
 local function boostCar(seat)
 	if not seat then return end
-
 	RunService.RenderStepped:Connect(function()
 		if boosting and seat and seat.Parent then
 			if not originalVelocity then
@@ -71,7 +68,6 @@ local function boostCar(seat)
 			end
 
 			local boostMultiplier = 1 + boostPercent/100
-
 			local boostVel = Vector3.new(
 				originalVelocity.X * boostMultiplier,
 				seat.AssemblyLinearVelocity.Y,
@@ -80,21 +76,29 @@ local function boostCar(seat)
 			seat.AssemblyLinearVelocity = boostVel
 
 
-			local horizontalVel = Vector3.new(seat.AssemblyLinearVelocity.X, 0, seat.AssemblyLinearVelocity.Z).Magnitude
-			local originalHorVel = Vector3.new(originalVelocity.X, 0, originalVelocity.Z).Magnitude
+			local horizontalVel = Vector3.new(seat.AssemblyLinearVelocity.X,0,seat.AssemblyLinearVelocity.Z).Magnitude
+			local originalHorVel = Vector3.new(originalVelocity.X,0,originalVelocity.Z).Magnitude
 			local percent = 0
 			if originalHorVel > 0 then
-				percent = math.clamp((horizontalVel / originalHorVel - 1) * 100, 0, 999)
+				percent = math.clamp((horizontalVel/originalHorVel-1)*100,0,999)
 			end
 			boostLabel.Text = "Boost: "..math.floor(percent).."%"
+
+	
 		else
 			originalVelocity = nil
 			boostLabel.Text = "Boost: 0%"
+
 		end
 	end)
 end
+local function toggleGUI()
+	guiVisible = not guiVisible
+	boostLabel.Visible = guiVisible
+	boostBox.Visible = guiVisible
+end
 
--- Tecla F
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.KeyCode == Enum.KeyCode.F then
@@ -103,6 +107,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if vehicle then
 			boostCar(vehicle)
 		end
+	elseif input.KeyCode == Enum.KeyCode.V then
+		
+			toggleGUI()
 	end
 end)
 
