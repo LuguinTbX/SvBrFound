@@ -15,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "BoostGUI"
 screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
 
 local boostLabel = Instance.new("TextLabel")
 boostLabel.Size = UDim2.new(0, 150, 0, 50)
