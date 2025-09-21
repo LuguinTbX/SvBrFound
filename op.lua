@@ -1,11 +1,12 @@
 --Feito por Frawd
 
 local player = game.Players.LocalPlayer
+local character = player.Character
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local PlayerGui= player.PlayerGui
 local boosting = false
-local boostPercent = 10
+local boostPercent = 0
 local boostKey = Enum.KeyCode.F
 local baseSpeed = nil 
 local guiVisible = true
@@ -26,24 +27,86 @@ boostLabel.TextScaled = true
 boostLabel.Text = "Boost: 0%"
 boostLabel.Parent = screenGui
 
-local boostBox = Instance.new("TextBox")
-boostBox.Size = UDim2.new(0, 100, 0, 30)
-boostBox.Position = UDim2.new(0.5, -50, 0.92, 0)
-boostBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
-boostBox.TextColor3 = Color3.fromRGB(255,255,255)
-boostBox.Font = Enum.Font.SourceSans
-boostBox.TextScaled = true
-boostBox.Text = tostring(boostPercent)
-boostBox.ClearTextOnFocus = false
-boostBox.Parent = screenGui
-boostBox.FocusLost:Connect(function(enterPressed)
-	if enterPressed then
-		local value = tonumber(boostBox.Text)
-		if value then
-			boostPercent = math.clamp(value, 0, 1000) 
-		else
-			boostBox.Text = tostring(boostPercent)
-		end
+local sliderFrame = Instance.new("Frame")
+sliderFrame.Size = UDim2.new(0, 600, 0, 30)
+sliderFrame.Position = UDim2.new(0.5, -300, 0.92, 0)
+sliderFrame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+sliderFrame.BorderSizePixel = 0
+sliderFrame.Parent = screenGui
+
+local sliderBar = Instance.new("Frame")
+sliderBar.Size = UDim2.new(1, 0, 0.3, 0)
+sliderBar.Position = UDim2.new(0, 0, 0.35, 0)
+sliderBar.BackgroundColor3 = Color3.fromRGB(100,100,100)
+sliderBar.BorderSizePixel = 0
+sliderBar.Parent = sliderFrame
+
+
+local sliderButton = Instance.new("Frame")
+sliderButton.Size = UDim2.new(0, 10, 1.2, 0)
+sliderButton.Position = UDim2.new(0.5, -5, -0.1, 0)
+sliderButton.BackgroundColor3 = Color3.fromRGB(200,200,200)
+sliderButton.BorderSizePixel = 0
+sliderButton.Parent = sliderFrame
+local boostProgressBar = Instance.new("Frame")
+boostProgressBar.Size = UDim2.new(0, 0, 1, 0)
+boostProgressBar.Position = UDim2.new(0, 0, 0, 0)
+boostProgressBar.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+boostProgressBar.BorderSizePixel = 0
+boostProgressBar.Parent = sliderBar
+boostProgressBar.ZIndex = 2
+
+
+sliderBar.BackgroundColor3 = Color3.fromRGB(100,100,100)
+
+
+local sliderValueLabel = Instance.new("TextLabel")
+sliderValueLabel.Size = UDim2.new(0, 60, 1, 0)
+sliderValueLabel.Position = UDim2.new(1, 5, 0, 0)
+sliderValueLabel.BackgroundTransparency = 1
+sliderValueLabel.TextColor3 = Color3.fromRGB(255,255,255)
+sliderValueLabel.Font = Enum.Font.SourceSans
+sliderValueLabel.TextScaled = true
+sliderValueLabel.Text = tostring(boostPercent).."%"
+sliderValueLabel.Parent = sliderFrame
+
+local function updateSliderFromX(x)
+	local rel = math.clamp((x - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
+	sliderButton.Position = UDim2.new(rel, -5, -0.1, 0)
+
+	boostProgressBar.Size = UDim2.new(rel, 0, 1, 0)
+
+	local step = 1
+	local rawValue = rel * 100
+	boostPercent = math.clamp(math.floor((rawValue / step) + 0.5) * step, 0, 100)
+	sliderValueLabel.Text = tostring(boostPercent).."%"
+end
+
+
+local dragging = false
+
+sliderFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		updateSliderFromX(input.Position.X)
+		dragging = true
+	end
+end)
+
+sliderButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		updateSliderFromX(input.Position.X)
 	end
 end)
 
@@ -62,6 +125,61 @@ keyButton.MouseButton1Click:Connect(function()
 	waitingForKey = true
 	keyButton.Text = "Press a key..."
 end)
+local function getOrCreateSpeedLabel()
+	local head = player.Character and player.Character:FindFirstChild("Head")
+	if not head then return nil end
+
+	local speedGui = head:FindFirstChild("SpeedDisplay")
+	if not speedGui then
+		speedGui = Instance.new("BillboardGui")
+		speedGui.Size = UDim2.new(0, 100, 0, 50)
+		speedGui.StudsOffset = Vector3.new(0, 2, 0)
+		speedGui.Adornee = head
+		speedGui.AlwaysOnTop = true
+		speedGui.Name = "SpeedDisplay"
+		speedGui.Parent = head
+
+		local label = Instance.new("TextLabel")
+		label.Name = "Display"
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.Font = Enum.Font.SourceSansBold
+		label.TextScaled = true
+		label.Text = "0"
+		label.Parent = speedGui
+	end
+
+	return speedGui:FindFirstChild("Display")
+end
+local function getVehicle()
+	local character = player.Character
+	if not character then return nil end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
+		return humanoid.SeatPart
+	end
+	return nil
+end
+
+RunService.Heartbeat:Connect(function()
+	local character = player.Character
+	local head = character and character:FindFirstChild("Head")
+	local vehicle = getVehicle()
+	local speedLabel = getOrCreateSpeedLabel()
+
+	if vehicle and head and speedLabel then
+
+		speedLabel.Text = string.format("%.1f", vehicle.AssemblyLinearVelocity.Magnitude) .. " m/s"
+		speedLabel.Parent.Enabled = true
+	else
+
+		if speedLabel and speedLabel.Parent then
+			speedLabel.Parent.Enabled = false
+		end
+	end
+end)
+
 
 local function showNotice(msg, duration)
 	duration = duration or 3
@@ -102,15 +220,7 @@ local function showNotice(msg, duration)
 end
 showNotice("V = Modo Stream\nBoost Key = " .. boostKey.Name, 5)
 
-local function getVehicle()
-	local character = player.Character
-	if not character then return nil end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
-		return humanoid.SeatPart
-	end
-	return nil
-end
+
 
 local renderConn
 local boostProgress = 0
@@ -120,12 +230,14 @@ local function startBoost()
 	local vehicle = getVehicle()
 	if not vehicle then return end
 
-	if vehicle ~= lastVehicle or not baseSpeed then
+
+	if not baseSpeed or vehicle ~= lastVehicle then
 		local vel = vehicle.AssemblyLinearVelocity
 		baseSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
 		lastVehicle = vehicle
 		boostProgress = 0
 	end
+
 
 	if renderConn then
 		renderConn:Disconnect()
@@ -135,20 +247,19 @@ local function startBoost()
 		local currentVehicle = getVehicle()
 		if boosting and currentVehicle and currentVehicle.Parent then
 
+		
 			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
 
-
+		
 			local currentBoostPercent = boostPercent * boostProgress
 			local boostMultiplier = 1 + (currentBoostPercent / 100)
 
 			local currentVel = currentVehicle.AssemblyLinearVelocity
 			local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
 
-			if horizontalVel.Magnitude > 0 and baseSpeed > 0 then
-
-				local targetSpeed = baseSpeed * boostMultiplier
+			if horizontalVel.Magnitude > 0 then
 				local currentSpeed = horizontalVel.Magnitude
-
+				local targetSpeed = baseSpeed * boostMultiplier
 
 				if currentSpeed < targetSpeed then
 					local boostDirection = horizontalVel.Unit
@@ -162,14 +273,13 @@ local function startBoost()
 				end
 			end
 
-
 			boostLabel.Text = "Boost: " .. math.floor(currentBoostPercent) .. "%"
 
 		else
-
+			
 			boostProgress = 0
 			boostLabel.Text = "Boost: 0%"
-
+			baseSpeed = nil
 			if renderConn then
 				renderConn:Disconnect()
 				renderConn = nil
@@ -181,7 +291,7 @@ end
 function toggleGUI()
 	guiVisible = not guiVisible
 	boostLabel.Visible = guiVisible
-	boostBox.Visible = guiVisible
+	sliderFrame.Visible = guiVisible
 	keyButton.Visible = guiVisible
 end
 
