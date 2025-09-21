@@ -1,14 +1,16 @@
+--Feito por Frawd
+
 local player = game.Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-
+local PlayerGui= player.PlayerGui
 local boosting = false
 local boostPercent = 10
 local boostKey = Enum.KeyCode.F
 local originalSpeed = nil
 local guiVisible = true
+local TweenService = game:GetService("TweenService")
 
--- Create GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "BoostGUI"
 screenGui.Parent = player:WaitForChild("PlayerGui")
@@ -61,6 +63,49 @@ keyButton.MouseButton1Click:Connect(function()
 	keyButton.Text = "Press a key..."
 end)
 
+
+
+local function showNotice(msg, duration)
+	duration = duration or 3
+
+	local screenGui = PlayerGui:FindFirstChild("KeybindNotice") or Instance.new("ScreenGui")
+	screenGui.Name = "KeybindNotice"
+	screenGui.Parent = PlayerGui
+
+	local label = screenGui:FindFirstChild("NoticeLabel")
+	if not label then
+		label = Instance.new("TextLabel")
+		label.Name = "NoticeLabel"
+		label.Size = UDim2.new(0, 300, 0, 50)
+		label.Position = UDim2.new(0.9, -140, 0.9, 0) 
+		label.BackgroundTransparency = 0.3
+		label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.TextScaled = true
+		label.Font = Enum.Font.SourceSansBold
+		label.Parent = screenGui
+	end
+
+	label.Text = msg
+	label.Visible = true
+	label.TextTransparency = 0
+	label.BackgroundTransparency = 0.3
+
+
+	local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) 
+	local goal = {TextTransparency = 1, BackgroundTransparency = 1}
+
+
+	task.delay(duration, function()
+		local tween = TweenService:Create(label, tweenInfo, goal)
+		tween:Play()
+		tween.Completed:Connect(function()
+			label.Visible = false
+		end)
+	end)
+end
+showNotice("V = Modo Stream\nBoost Key = " .. boostKey.Name, 5)
+
 local function getVehicle()
 	local character = player.Character
 	if not character then return nil end
@@ -108,6 +153,7 @@ local function boostCar(seat)
 				end
 
 				boostLabel.Text = "Boost: " .. math.floor(percent) .. "%"
+				
 			else
 				
 				boostProgress = 0
@@ -124,9 +170,13 @@ function toggleGUI()
 	boostBox.Visible = guiVisible
 	keyButton.Visible = guiVisible
 end
+local UserInputTypes = {
+	Keyboard = Enum.UserInputType.Keyboard,
+	Gamepad1 = Enum.UserInputType.Gamepad1,
+}
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if waitingForKey and input.UserInputType == Enum.UserInputType.Keyboard then
+	if waitingForKey and (input.UserInputType == UserInputTypes.Keyboard or input.UserInputType == UserInputTypes.Gamepad1) then
 		boostKey = input.KeyCode
 		keyButton.Text = "Boost Key: " .. boostKey.Name
 		waitingForKey = false
