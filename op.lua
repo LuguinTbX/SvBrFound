@@ -7,7 +7,7 @@ local PlayerGui= player.PlayerGui
 local boosting = false
 local boostPercent = 10
 local boostKey = Enum.KeyCode.F
-local originalSpeed = nil
+local baseSpeed = nil 
 local guiVisible = true
 local TweenService = game:GetService("TweenService")
 
@@ -63,8 +63,6 @@ keyButton.MouseButton1Click:Connect(function()
 	keyButton.Text = "Press a key..."
 end)
 
-
-
 local function showNotice(msg, duration)
 	duration = duration or 3
 
@@ -91,10 +89,8 @@ local function showNotice(msg, duration)
 	label.TextTransparency = 0
 	label.BackgroundTransparency = 0.3
 
-
 	local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) 
 	local goal = {TextTransparency = 1, BackgroundTransparency = 1}
-
 
 	task.delay(duration, function()
 		local tween = TweenService:Create(label, tweenInfo, goal)
@@ -118,50 +114,68 @@ end
 
 local renderConn
 local boostProgress = 0
-local function boostCar(seat)
-	if not seat then return end
+local lastVehicle = nil
 
+local function startBoost()
+	local vehicle = getVehicle()
+	if not vehicle then return end
 
-	if not originalSpeed then
-		local currentVel = seat.AssemblyLinearVelocity
-		originalSpeed = Vector3.new(currentVel.X, 0, currentVel.Z).Magnitude
+	if vehicle ~= lastVehicle or not baseSpeed then
+		local vel = vehicle.AssemblyLinearVelocity
+		baseSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+		lastVehicle = vehicle
+		boostProgress = 0
 	end
 
-	if not renderConn then
-		renderConn = RunService.Heartbeat:Connect(function(dt)
-			local vehicle = getVehicle()
-			if boosting and vehicle and vehicle.Parent then
+	if renderConn then
+		renderConn:Disconnect()
+	end
 
-				boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
+	renderConn = RunService.Heartbeat:Connect(function(dt)
+		local currentVehicle = getVehicle()
+		if boosting and currentVehicle and currentVehicle.Parent then
+
+			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
 
 
-				local boostMultiplier = 1 + (boostPercent / 100) * boostProgress
+			local currentBoostPercent = boostPercent * boostProgress
+			local boostMultiplier = 1 + (currentBoostPercent / 100)
 
-			
-				local currentVel = vehicle.AssemblyLinearVelocity
-				local lookDir = vehicle.CFrame.LookVector
+			local currentVel = currentVehicle.AssemblyLinearVelocity
+			local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
 
-			
-				local newVel = lookDir * originalSpeed * boostMultiplier
-				vehicle.AssemblyLinearVelocity = Vector3.new(newVel.X, currentVel.Y, newVel.Z)
+			if horizontalVel.Magnitude > 0 and baseSpeed > 0 then
 
-				
-				local currentSpeed = Vector3.new(vehicle.AssemblyLinearVelocity.X, 0, vehicle.AssemblyLinearVelocity.Z).Magnitude
-				local percent = 0
-				if originalSpeed > 0 then
-					percent = math.clamp(((currentSpeed / originalSpeed) - 1) * 100, 0, 999)
+				local targetSpeed = baseSpeed * boostMultiplier
+				local currentSpeed = horizontalVel.Magnitude
+
+
+				if currentSpeed < targetSpeed then
+					local boostDirection = horizontalVel.Unit
+					local newVel = boostDirection * targetSpeed
+
+					currentVehicle.AssemblyLinearVelocity = Vector3.new(
+						newVel.X,
+						currentVel.Y,
+						newVel.Z
+					)
 				end
-
-				boostLabel.Text = "Boost: " .. math.floor(percent) .. "%"
-				
-			else
-				
-				boostProgress = 0
-				originalSpeed = nil
-				boostLabel.Text = "Boost: 0%"
 			end
-		end)
-	end
+
+
+			boostLabel.Text = "Boost: " .. math.floor(currentBoostPercent) .. "%"
+
+		else
+
+			boostProgress = 0
+			boostLabel.Text = "Boost: 0%"
+
+			if renderConn then
+				renderConn:Disconnect()
+				renderConn = nil
+			end
+		end
+	end)
 end
 
 function toggleGUI()
@@ -170,6 +184,7 @@ function toggleGUI()
 	boostBox.Visible = guiVisible
 	keyButton.Visible = guiVisible
 end
+
 local UserInputTypes = {
 	Keyboard = Enum.UserInputType.Keyboard,
 	Gamepad1 = Enum.UserInputType.Gamepad1,
@@ -185,10 +200,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if input.KeyCode == boostKey then
 		boosting = true
-		local vehicle = getVehicle()
-		if vehicle then
-			boostCar(vehicle)
-		end
+		startBoost()
 	elseif input.KeyCode == Enum.KeyCode.V then
 		toggleGUI()
 	end
