@@ -34,6 +34,7 @@ sliderFrame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 sliderFrame.BorderSizePixel = 0
 sliderFrame.Parent = screenGui
 
+-- "linha" do slider
 local sliderBar = Instance.new("Frame")
 sliderBar.Size = UDim2.new(1, 0, 0.3, 0)
 sliderBar.Position = UDim2.new(0, 0, 0.35, 0)
