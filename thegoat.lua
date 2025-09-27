@@ -43,20 +43,39 @@ local function toggleCollision(enable, currentVehicle, character)
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("BasePart") then
 			local rootModel = getRootModel(obj)
-			if rootModel and rootModel:IsA("Model") then
-		
-				if rootModel ~= currentVehicle and rootModel:FindFirstChildOfClass("VehicleSeat") then
-					obj.CanCollide = not enable
+
+			if rootModel and rootModel:IsA("Model") and rootModel:FindFirstChild("DriveSeat") then
+	
+				if rootModel ~= currentVehicle then
+					local seat = rootModel:FindFirstChild("DriveSeat")
+					local occupant = seat and seat.Occupant
+					local plr = occupant and game.Players:GetPlayerFromCharacter(occupant.Parent)
+
+
+					for _, part in ipairs(rootModel:GetDescendants()) do
+						if part:IsA("BasePart") then
+							if not plr then
+								part.CanCollide = not enable
+							else
+								part.CanCollide = true
+							end
+						end
+					end
 				end
 
-				local plr = game.Players:GetPlayerFromCharacter(rootModel)
-				if plr and rootModel ~= character then
-					obj.CanCollide = not enable
+
+				if rootModel ~= character and game.Players:GetPlayerFromCharacter(rootModel) then
+					for _, part in ipairs(rootModel:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.CanCollide = true
+						end
+					end
 				end
 			end
 		end
 	end
 end
+
 
 local function detectSeat(character)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
