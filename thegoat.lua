@@ -1,50 +1,57 @@
--- Gui to Lua
--- Version: 3.2
-
--- Instances:
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
 local ScreenGui = Instance.new("ScreenGui")
-local TextButton = Instance.new("TextButton")
-
---Properties:
-
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent = playerGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-TextButton.Parent = ScreenGui
-TextButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-TextButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-TextButton.BorderSizePixel = 0
-TextButton.Position = UDim2.new(0, 0, 0.548, 0)
-TextButton.Size = UDim2.new(0, 200, 0, 50)
-TextButton.Font = Enum.Font.SourceSans
-TextButton.Text = "Off"
-TextButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-TextButton.TextScaled = true
-TextButton.TextSize = 14.000
-TextButton.TextWrapped = true
 
--- Scripts:
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Parent = ScreenGui
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 20, 0.48, 0) 
+TitleLabel.Size = UDim2.new(0, 200, 0, 30)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Text = "Disable Collision"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextStrokeTransparency = 0.5
+TitleLabel.TextScaled = true
 
-local function toggleCollision(on, model, character)
-	-- Desativa ou reativa a colisão para veículos e personagens de outros jogadores
-	for _, v in pairs(game.Workspace:GetDescendants()) do
-		if v:IsA('Model') and v ~= model then
-			if v:FindFirstChildOfClass('VehicleSeat') then
-				for _, part in pairs(v:GetDescendants()) do
-					if part:IsA('BasePart') then
-						part.CanCollide = not on -- Desativa ou ativa a colisão
-					end
-				end
-			end
-		end
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.Position = UDim2.new(0, 20, 0.55, 0)
+ToggleButton.Size = UDim2.new(0, 200, 0, 50)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Text = "Off"
+ToggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+ToggleButton.TextScaled = true
+ToggleButton.TextWrapped = true
+ToggleButton.AutoButtonColor = true
+
+
+local function getRootModel(obj)
+	while obj and not obj:IsA("Model") do
+		obj = obj.Parent
 	end
+	return obj
+end
 
-	for _, cha in pairs(game.Players:GetPlayers()) do
-		if cha.Character and cha.Character ~= character then
-			for _, part in pairs(cha.Character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = not on -- Desativa ou ativa a colisão
+local function toggleCollision(enable, currentVehicle, character)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			local rootModel = getRootModel(obj)
+			if rootModel and rootModel:IsA("Model") then
+		
+				if rootModel ~= currentVehicle and rootModel:FindFirstChildOfClass("VehicleSeat") then
+					obj.CanCollide = not enable
+				end
+
+				local plr = game.Players:GetPlayerFromCharacter(rootModel)
+				if plr and rootModel ~= character then
+					obj.CanCollide = not enable
 				end
 			end
 		end
@@ -52,29 +59,35 @@ local function toggleCollision(on, model, character)
 end
 
 local function detectSeat(character)
-	local humanoid = character:WaitForChild("Humanoid")
-	if humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
-		return humanoid.SeatPart.Parent -- Retorna o modelo em que o jogador está sentado
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
+		return humanoid.SeatPart.Parent
 	end
 	return nil
 end
 
+
 local function setupButton(button)
-	local on = false
-	local player = game.Players.LocalPlayer
+	local isOn = false
 	local character = player.Character or player.CharacterAdded:Wait()
 
 	button.MouseButton1Click:Connect(function()
-		on = not on
-		button.Text = on and "On" or "Off"
+		isOn = not isOn
+		button.Text = isOn and "On" or "Off"
+		button.BackgroundColor3 = isOn and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
 
-		local model = detectSeat(character)
-		if model then
-			toggleCollision(on, model, character)
+		local vehicle = detectSeat(character)
+		if vehicle then
+			toggleCollision(isOn, vehicle, character)
 		else
-			print("O jogador não está sentado em um VehicleSeat.")
+			if isOn then
+				warn("Ativação ignorada: jogador não está sentado em um VehicleSeat.")
+				isOn = false
+				button.Text = "Off"
+				button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			end
 		end
 	end)
 end
 
-setupButton(TextButton)
+setupButton(ToggleButton)
