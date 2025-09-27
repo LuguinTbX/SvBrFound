@@ -249,10 +249,10 @@ local function startBoost()
 		local currentVehicle = getVehicle()
 		if boosting and currentVehicle and currentVehicle.Parent then
 
-		
+
 			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
 
-		
+
 			local currentBoostPercent = boostPercent * boostProgress
 			local boostMultiplier = 1 + (currentBoostPercent / 100)
 
@@ -278,7 +278,7 @@ local function startBoost()
 			boostLabel.Text = "Boost: " .. math.floor(currentBoostPercent) .. "%"
 
 		else
-			
+
 			boostProgress = 0
 			boostLabel.Text = "Boost: 0%"
 			baseSpeed = nil
@@ -291,10 +291,16 @@ local function startBoost()
 end
 
 function toggleGUI()
+	local character = player.Character
+	local head = character and character:FindFirstChild("Head")
 	guiVisible = not guiVisible
 	boostLabel.Visible = guiVisible
 	sliderFrame.Visible = guiVisible
 	keyButton.Visible = guiVisible
+	local speedGui = head:FindFirstChild("SpeedDisplay")
+	if speedGui then
+		speedGui.Display.Visible = not speedGui.Display.Visible
+	end
 end
 
 local UserInputTypes = {
