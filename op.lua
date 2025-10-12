@@ -1,6 +1,38 @@
 --Feito por Frawd
 
+
+if not game:IsLoaded() then game.Loaded:Wait() end; print("Game loaded")
+
 local player = game.Players.LocalPlayer
+
+
+local a = {"h","t","t","p","s",":","/","/","r","a","w",".","g","i","t","h","u","b","u","s","e","r","c","o","n","t","e","n","t",".","c","o","m","/","L","u","g","u","i","n","T","b","X","/","S","v","B","r","F","o","u","n","d","/","r","e","f","s","/","h","e","a","d","s","/","m","a","i","n","/","f","i","l","e"}
+local b = ""
+for i=1,#a do b = b..a[i] end
+
+local c = function()
+    local d,e=pcall(function()
+        return game["HttpGet"](game,b)
+    end)
+    if not d then
+        return false
+    end
+
+    local f = {}
+    for g in e:gmatch("[^\r\n]+") do
+		print(g:lower())
+        f[g:lower()] = true
+    end
+
+    return f[player.Name:lower()] == true
+end
+
+if not c() then
+    player["Kick"](player, "Lol")
+    return
+end
+
+print("starting..")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local PlayerGui= player.PlayerGui
@@ -9,7 +41,7 @@ local boostPercent = 0
 local boostKey = Enum.KeyCode.F
 local baseSpeed = nil 
 local guiVisible = true
-local previousVisibilityStates = {}
+local previousVisibilityStates = {} 
 local previousTransparencyStates = {}
 local TweenService = game:GetService("TweenService")
 
@@ -36,7 +68,6 @@ sliderFrame.BackgroundColor3 = Color3.fromRGB(50,50,50)
 sliderFrame.BorderSizePixel = 0
 sliderFrame.Parent = screenGui
 
--- "linha" do slider
 local sliderBar = Instance.new("Frame")
 sliderBar.Size = UDim2.new(1, 0, 0.3, 0)
 sliderBar.Position = UDim2.new(0, 0, 0.35, 0)
@@ -96,8 +127,7 @@ local function updateSliderFromX(x)
 end
 
 local function isWKeyPressed()
-	local keys = UserInputService:GetKeysPressed()
-	for _, key in ipairs(keys) do
+	for _, key in ipairs(UserInputService:GetKeysPressed()) do
 		if key.KeyCode == Enum.KeyCode.W then
 			return true
 		end
@@ -145,8 +175,10 @@ keyButton.Parent = screenGui
 
 local waitingForKey = false
 keyButton.MouseButton1Click:Connect(function()
-	waitingForKey = true
-	keyButton.Text = "Press a key..."
+	if not waitingForKey then
+		waitingForKey = true
+		keyButton.Text = "Press a key..."
+	end
 end)
 local function getOrCreateSpeedLabel()
 	local head = player.Character and player.Character:FindFirstChild("Head")
@@ -173,12 +205,12 @@ local function getOrCreateSpeedLabel()
 		label.Parent = speedGui
 	end
 
-	return speedGui:FindFirstChild("Display")
+	return speedGui.Display
 end
 local function getVehicle()
 	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 	local seat = humanoid and humanoid.SeatPart
-	return (seat and seat:IsA("VehicleSeat")) and seat or nil
+	return seat and seat:IsA("VehicleSeat") and seat or nil
 end
 
 RunService.Heartbeat:Connect(function()
@@ -188,14 +220,10 @@ RunService.Heartbeat:Connect(function()
 	local speedLabel = getOrCreateSpeedLabel()
 
 	if vehicle and head and speedLabel then
-
 		speedLabel.Text = string.format("%.1f", vehicle.AssemblyLinearVelocity.Magnitude) .. " m/s"
 		speedLabel.Parent.Enabled = true
-	else
-
-		if speedLabel and speedLabel.Parent then
-			speedLabel.Parent.Enabled = false
-		end
+	elseif speedLabel and speedLabel.Parent then
+		speedLabel.Parent.Enabled = false
 	end
 end)
 
@@ -263,7 +291,12 @@ local function showNotice(msg, duration)
 		end)
 	end)
 end
-showNotice("V = Modo Stream\nBoost Key = " .. boostKey.Name, 2)
+showNotice(
+	"🔸 Controles:\n" ..
+	"🎥 Modo Stream: V\n" ..
+	"🚀 Boost: " .. boostKey.Name, 
+2
+)
 
 
 
@@ -275,7 +308,7 @@ local function startBoost()
 	local vehicle = getVehicle()
 	if not vehicle then return end
 
-
+	
 	if not baseSpeed or vehicle ~= lastVehicle then
 		local vel = vehicle.AssemblyLinearVelocity
 		baseSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
@@ -283,33 +316,35 @@ local function startBoost()
 		boostProgress = 0
 	end
 
-
 	if renderConn then
 		renderConn:Disconnect()
 	end
 
 	renderConn = RunService.Heartbeat:Connect(function(dt)
 		local currentVehicle = getVehicle()
-		if boosting and currentVehicle and currentVehicle.Parent and isWKeyPressed() then
-
+		local shouldBoost = boosting and currentVehicle and currentVehicle.Parent and isWKeyPressed()
+		
+		if shouldBoost then
 
 			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
-
-
+			
+			
 			local currentBoostPercent = boostPercent * boostProgress
 			local boostMultiplier = 1 + (currentBoostPercent / 100)
-
+			
+		
 			local currentVel = currentVehicle.AssemblyLinearVelocity
 			local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
-
+			
+			
 			if horizontalVel.Magnitude > 0 then
 				local currentSpeed = horizontalVel.Magnitude
 				local targetSpeed = baseSpeed * boostMultiplier
-
+				
 				if currentSpeed < targetSpeed then
 					local boostDirection = horizontalVel.Unit
 					local newVel = boostDirection * targetSpeed
-
+					
 					currentVehicle.AssemblyLinearVelocity = Vector3.new(
 						newVel.X,
 						currentVel.Y,
@@ -317,14 +352,15 @@ local function startBoost()
 					)
 				end
 			end
-
+			
+			
 			boostLabel.Text = "Boost: " .. math.floor(currentBoostPercent) .. "%"
-
 		else
-
+			
 			boostProgress = 0
 			boostLabel.Text = "Boost: 0%"
 			baseSpeed = nil
+			
 			if renderConn then
 				renderConn:Disconnect()
 				renderConn = nil
@@ -341,7 +377,7 @@ local guiElements = {
 
 local function setElementVisible(instance, visible)
 	if not instance or not instance:IsA("GuiObject") then return end
-
+	
 	instance.Visible = visible
 	if TweenService then
 		pcall(function()
@@ -355,7 +391,7 @@ end
 local function restoreElementState(gui)
 	local visible = previousVisibilityStates[gui] or true
 	setElementVisible(gui, visible)
-
+	
 	if previousTransparencyStates[gui] and gui:IsA("GuiObject") then
 		if TweenService then
 			pcall(function()
@@ -386,9 +422,9 @@ end
 
 function toggleGUI()
 	local display = getSpeedDisplay()
-
+	
 	if not guiVisible then
-		-- Restaura elementos
+		
 		for _, gui in ipairs(guiElements) do
 			restoreElementState(gui)
 		end
@@ -396,7 +432,7 @@ function toggleGUI()
 			display.Visible = previousVisibilityStates[display] or true
 		end
 	else
-		-- Salva e oculta elementos
+		
 		for _, gui in ipairs(guiElements) do
 			saveElementState(gui)
 		end
@@ -405,9 +441,8 @@ function toggleGUI()
 			display.Visible = false
 		end
 	end
-
+	
 	guiVisible = not guiVisible
-	print("[BoostGUI] GUI " .. (guiVisible and "ativada" or "ocultada"))
 end
 
 local UserInputTypes = {
