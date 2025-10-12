@@ -1,7 +1,6 @@
 --Feito por Frawd
 
 local player = game.Players.LocalPlayer
-local character = player.Character
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local PlayerGui= player.PlayerGui
@@ -10,6 +9,8 @@ local boostPercent = 0
 local boostKey = Enum.KeyCode.F
 local baseSpeed = nil 
 local guiVisible = true
+local previousVisibilityStates = {}
+local previousTransparencyStates = {}
 local TweenService = game:GetService("TweenService")
 
 local screenGui = Instance.new("ScreenGui")
@@ -73,15 +74,35 @@ sliderValueLabel.Text = tostring(boostPercent).."%"
 sliderValueLabel.Parent = sliderFrame
 
 local function updateSliderFromX(x)
-	local rel = math.clamp((x - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
-	sliderButton.Position = UDim2.new(rel, -5, -0.1, 0)
 
+	local sliderStart = sliderFrame.AbsolutePosition.X
+	local sliderWidth = sliderFrame.AbsoluteSize.X
+	local clampedX = math.clamp(x, sliderStart, sliderStart + sliderWidth)
+	local rel = (clampedX - sliderStart) / sliderWidth
+
+	sliderButton.Position = UDim2.new(rel, -sliderButton.Size.X.Offset/2, -0.1, 0)
 	boostProgressBar.Size = UDim2.new(rel, 0, 1, 0)
 
+
+	local maxBoost = 100
 	local step = 1
-	local rawValue = rel * 100
-	boostPercent = math.clamp(math.floor((rawValue / step) + 0.5) * step, 0, 100)
-	sliderValueLabel.Text = tostring(boostPercent).."%"
+	local rawValue = rel * maxBoost
+
+	local roundedValue = math.floor((rawValue + step/2) / step) * step
+	boostPercent = math.clamp(roundedValue, 0, maxBoost)
+
+
+	sliderValueLabel.Text = string.format("%d%%", boostPercent)
+end
+
+local function isWKeyPressed()
+	local keys = UserInputService:GetKeysPressed()
+	for _, key in ipairs(keys) do
+		if key.KeyCode == Enum.KeyCode.W then
+			return true
+		end
+	end
+	return false
 end
 
 
@@ -155,13 +176,9 @@ local function getOrCreateSpeedLabel()
 	return speedGui:FindFirstChild("Display")
 end
 local function getVehicle()
-	local character = player.Character
-	if not character then return nil end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
-		return humanoid.SeatPart
-	end
-	return nil
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	local seat = humanoid and humanoid.SeatPart
+	return (seat and seat:IsA("VehicleSeat")) and seat or nil
 end
 
 RunService.Heartbeat:Connect(function()
@@ -186,41 +203,67 @@ end)
 local function showNotice(msg, duration)
 	duration = duration or 3
 
-	local screenGui = PlayerGui:FindFirstChild("KeybindNotice") or Instance.new("ScreenGui")
-	screenGui.Name = "KeybindNotice"
-	screenGui.Parent = PlayerGui
+	local screenGui = PlayerGui:FindFirstChild("KeybindNotice")
+	if not screenGui then
+		screenGui = Instance.new("ScreenGui")
+		screenGui.Name = "KeybindNotice"
+		screenGui.IgnoreGuiInset = true
+		screenGui.ResetOnSpawn = false
+		screenGui.Parent = PlayerGui
+	end
 
 	local label = screenGui:FindFirstChild("NoticeLabel")
 	if not label then
 		label = Instance.new("TextLabel")
 		label.Name = "NoticeLabel"
-		label.Size = UDim2.new(0, 300, 0, 50)
+		label.Size = UDim2.new(0, 340, 0, 60)
 		label.Position = UDim2.new(0.9, -140, 0.9, 0) 
-		label.BackgroundTransparency = 0.3
-		label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.AnchorPoint = Vector2.new(0.5, 0)
+		label.BackgroundTransparency = 0.15
+		label.BackgroundColor3 = Color3.fromRGB(35, 35, 60)
+		label.BorderSizePixel = 0
+		label.TextColor3 = Color3.fromRGB(181, 214, 255)
+		label.TextStrokeTransparency = 0.75
+		label.TextStrokeColor3 = Color3.fromRGB(23, 42, 88)
+		label.TextSize = 26
 		label.TextScaled = true
-		label.Font = Enum.Font.SourceSansBold
+		label.Font = Enum.Font.FredokaOne or Enum.Font.GothamBold
 		label.Parent = screenGui
+
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0,14)
+		corner.Parent = label
+
 	end
 
 	label.Text = msg
 	label.Visible = true
+	label.ZIndex = 2
 	label.TextTransparency = 0
-	label.BackgroundTransparency = 0.3
+	label.BackgroundTransparency = 0.15
 
-	local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out) 
+	local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	local goal = {TextTransparency = 1, BackgroundTransparency = 1}
+
+
+	label.Size = UDim2.new(label.Size.X.Scale, label.Size.X.Offset-24, label.Size.Y.Scale, label.Size.Y.Offset-14)
+	label.BackgroundTransparency = 1
+	local popIn = TweenService:Create(label, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 340, 0, 60),
+		BackgroundTransparency = 0.15
+	})
+	popIn:Play()
 
 	task.delay(duration, function()
 		local tween = TweenService:Create(label, tweenInfo, goal)
 		tween:Play()
-		tween.Completed:Connect(function()
+		tween.Completed:Once(function()
 			label.Visible = false
 		end)
 	end)
 end
-showNotice("V = Modo Stream\nBoost Key = " .. boostKey.Name, 5)
+showNotice("V = Modo Stream\nBoost Key = " .. boostKey.Name, 2)
 
 
 
@@ -247,7 +290,7 @@ local function startBoost()
 
 	renderConn = RunService.Heartbeat:Connect(function(dt)
 		local currentVehicle = getVehicle()
-		if boosting and currentVehicle and currentVehicle.Parent then
+		if boosting and currentVehicle and currentVehicle.Parent and isWKeyPressed() then
 
 
 			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
@@ -290,17 +333,81 @@ local function startBoost()
 	end)
 end
 
-function toggleGUI()
-	local character = player.Character
-	local head = character and character:FindFirstChild("Head")
-	guiVisible = not guiVisible
-	boostLabel.Visible = guiVisible
-	sliderFrame.Visible = guiVisible
-	keyButton.Visible = guiVisible
-	local speedGui = head:FindFirstChild("SpeedDisplay")
-	if speedGui then
-		speedGui.Display.Visible = not speedGui.Display.Visible
+local guiElements = {
+	boostLabel,
+	sliderFrame,
+	keyButton
+}
+
+local function setElementVisible(instance, visible)
+	if not instance or not instance:IsA("GuiObject") then return end
+
+	instance.Visible = visible
+	if TweenService then
+		pcall(function()
+			TweenService:Create(instance, TweenInfo.new(0.18), {
+				BackgroundTransparency = visible and 0 or 1
+			}):Play()
+		end)
 	end
+end
+
+local function restoreElementState(gui)
+	local visible = previousVisibilityStates[gui] or true
+	setElementVisible(gui, visible)
+
+	if previousTransparencyStates[gui] and gui:IsA("GuiObject") then
+		if TweenService then
+			pcall(function()
+				TweenService:Create(gui, TweenInfo.new(0.18), {
+					BackgroundTransparency = previousTransparencyStates[gui]
+				}):Play()
+			end)
+		else
+			gui.BackgroundTransparency = previousTransparencyStates[gui]
+		end
+	end
+end
+
+local function saveElementState(gui)
+	previousVisibilityStates[gui] = gui.Visible
+	if gui:IsA("GuiObject") then
+		previousTransparencyStates[gui] = gui.BackgroundTransparency
+	end
+	setElementVisible(gui, false)
+end
+
+local function getSpeedDisplay()
+	local character = player and player.Character
+	local head = character and character:FindFirstChild("Head")
+	local speedGui = head and head:FindFirstChild("SpeedDisplay")
+	return speedGui and speedGui:FindFirstChild("Display")
+end
+
+function toggleGUI()
+	local display = getSpeedDisplay()
+
+	if not guiVisible then
+		-- Restaura elementos
+		for _, gui in ipairs(guiElements) do
+			restoreElementState(gui)
+		end
+		if display and display:IsA("GuiObject") then
+			display.Visible = previousVisibilityStates[display] or true
+		end
+	else
+		-- Salva e oculta elementos
+		for _, gui in ipairs(guiElements) do
+			saveElementState(gui)
+		end
+		if display and display:IsA("GuiObject") then
+			previousVisibilityStates[display] = display.Visible
+			display.Visible = false
+		end
+	end
+
+	guiVisible = not guiVisible
+	print("[BoostGUI] GUI " .. (guiVisible and "ativada" or "ocultada"))
 end
 
 local UserInputTypes = {
