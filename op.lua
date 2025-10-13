@@ -1,4 +1,5 @@
---Feito por Frawd
+--Feito por Frawd 
+-- Bug fixed btw
 
 
 if not game:IsLoaded() then game.Loaded:Wait() end; print("Game loaded")
@@ -110,12 +111,13 @@ local function updateSliderFromX(x)
 end
 
 local function isWKeyPressed()
-	return table.find(
-		table.create(#UserInputService:GetKeysPressed(), function(i)
-			return UserInputService:GetKeysPressed()[i].KeyCode
-		end),
-		Enum.KeyCode.W
-	) ~= nil
+	local keysPressed = UserInputService:GetKeysPressed()
+	for _, key in ipairs(keysPressed) do
+		if key.KeyCode == Enum.KeyCode.W then
+			return true
+		end
+	end
+	return false
 end
 
 
@@ -300,7 +302,7 @@ local function startBoost()
 	local vehicle = getVehicle()
 	if not vehicle then return end
 
-	
+
 	if not baseSpeed or vehicle ~= lastVehicle then
 		local vel = vehicle.AssemblyLinearVelocity
 		baseSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
@@ -316,24 +318,23 @@ local function startBoost()
 		local currentVehicle = getVehicle()
 		local shouldBoost = boosting and currentVehicle and currentVehicle.Parent and isWKeyPressed()
 		
+
+		
 		if shouldBoost then
 
 			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
 			
-			
+
 			local currentBoostPercent = boostPercent * boostProgress
 			local boostMultiplier = 1 + (currentBoostPercent / 100)
-			
-		
-			local currentVel = currentVehicle.AssemblyLinearVelocity
-			local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
-			
-			
-			if horizontalVel.Magnitude > 0 then
-				local currentSpeed = horizontalVel.Magnitude
-				local targetSpeed = baseSpeed * boostMultiplier
+
+			if baseSpeed then
+				local currentVel = currentVehicle.AssemblyLinearVelocity
+				local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
 				
-				if currentSpeed < targetSpeed then
+
+				if horizontalVel.Magnitude > 0 then
+					local targetSpeed = baseSpeed * boostMultiplier
 					local boostDirection = horizontalVel.Unit
 					local newVel = boostDirection * targetSpeed
 					
@@ -345,14 +346,15 @@ local function startBoost()
 				end
 			end
 			
-			
+
 			boostLabel.Text = "Boost: " .. math.floor(currentBoostPercent) .. "%"
 		else
-			
+
 			boostProgress = 0
 			boostLabel.Text = "Boost: 0%"
-			baseSpeed = nil
 			
+
+			-- Desconectar conexão
 			if renderConn then
 				renderConn:Disconnect()
 				renderConn = nil
@@ -453,6 +455,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 	if gameProcessed then return end
 	if input.KeyCode == boostKey then
+		print("Boost Key Pressed:", boostKey.Name)
 		boosting = true
 		startBoost()
 	elseif input.KeyCode == Enum.KeyCode.V then
