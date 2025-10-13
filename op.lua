@@ -7,30 +7,19 @@ local player = game.Players.LocalPlayer
 
 
 local a = {"h","t","t","p","s",":","/","/","r","a","w",".","g","i","t","h","u","b","u","s","e","r","c","o","n","t","e","n","t",".","c","o","m","/","L","u","g","u","i","n","T","b","X","/","S","v","B","r","F","o","u","n","d","/","r","e","f","s","/","h","e","a","d","s","/","m","a","i","n","/","f","i","l","e"}
-local b = ""
-for i=1,#a do b = b..a[i] end
-
-local c = function()
-    local d,e=pcall(function()
-        return game["HttpGet"](game,b)
-    end)
-    if not d then
-        return false
-    end
-
-    local f = {}
-    for g in e:gmatch("[^\r\n]+") do
-		print(g:lower())
-        f[g:lower()] = true
-    end
-
-    return f[player.Name:lower()] == true
+local _b = "";for _i=1,#a do _b=_b..a[_i]end
+local function _c()
+	local _d,_e=pcall(function()return game["HttpGet"](game,_b)end)
+	if not _d then return false end
+	local _f=setmetatable({}, {__mode="kv"})
+	for _g in (_e or ""):gmatch("[^\r\n]+") do
+		local _h=string.lower(_g or "")
+		print(_h)
+		_f[_h]=1
+	end
+	return _f[(player.Name and string.lower(player.Name)) or ""]==1
 end
-
-if not c() then
-    player["Kick"](player, "Lol")
-    return
-end
+if not (function()return _c()end)() then (player["Kick"])(player, ("L".."o".."l")) return end
 
 print("starting..")
 local UserInputService = game:GetService("UserInputService")
@@ -105,34 +94,28 @@ sliderValueLabel.Text = tostring(boostPercent).."%"
 sliderValueLabel.Parent = sliderFrame
 
 local function updateSliderFromX(x)
-
 	local sliderStart = sliderFrame.AbsolutePosition.X
 	local sliderWidth = sliderFrame.AbsoluteSize.X
-	local clampedX = math.clamp(x, sliderStart, sliderStart + sliderWidth)
-	local rel = (clampedX - sliderStart) / sliderWidth
+	if sliderWidth == 0 then return end
+
+	local rel = math.clamp((x - sliderStart) / sliderWidth, 0, 1)
 
 	sliderButton.Position = UDim2.new(rel, -sliderButton.Size.X.Offset/2, -0.1, 0)
 	boostProgressBar.Size = UDim2.new(rel, 0, 1, 0)
 
-
 	local maxBoost = 100
-	local step = 1
-	local rawValue = rel * maxBoost
-
-	local roundedValue = math.floor((rawValue + step/2) / step) * step
-	boostPercent = math.clamp(roundedValue, 0, maxBoost)
-
+	boostPercent = math.floor(rel * maxBoost + 0.5)
 
 	sliderValueLabel.Text = string.format("%d%%", boostPercent)
 end
 
 local function isWKeyPressed()
-	for _, key in ipairs(UserInputService:GetKeysPressed()) do
-		if key.KeyCode == Enum.KeyCode.W then
-			return true
-		end
-	end
-	return false
+	return table.find(
+		table.create(#UserInputService:GetKeysPressed(), function(i)
+			return UserInputService:GetKeysPressed()[i].KeyCode
+		end),
+		Enum.KeyCode.W
+	) ~= nil
 end
 
 
@@ -158,8 +141,11 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-		updateSliderFromX(input.Position.X)
+	if not dragging then return end
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		if input.Position and typeof(input.Position) == "Vector3" or typeof(input.Position) == "UDim2" or typeof(input.Position) == "Vector2" then
+			updateSliderFromX(input.Position.X)
+		end
 	end
 end)
 
@@ -208,9 +194,15 @@ local function getOrCreateSpeedLabel()
 	return speedGui.Display
 end
 local function getVehicle()
-	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-	local seat = humanoid and humanoid.SeatPart
-	return seat and seat:IsA("VehicleSeat") and seat or nil
+	local character = player.Character
+	if not character then return nil end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return nil end
+	local seat = humanoid.SeatPart
+	if seat and seat:IsA("VehicleSeat") then
+		return seat
+	end
+	return nil
 end
 
 RunService.Heartbeat:Connect(function()
@@ -452,9 +444,11 @@ local UserInputTypes = {
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if waitingForKey and (input.UserInputType == UserInputTypes.Keyboard or input.UserInputType == UserInputTypes.Gamepad1) then
-		boostKey = input.KeyCode
-		keyButton.Text = "Boost Key: " .. boostKey.Name
 		waitingForKey = false
+		if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+			boostKey = input.KeyCode
+			keyButton.Text = "Boost Key: " .. (boostKey.Name or tostring(boostKey))
+		end
 		return
 	end
 	if gameProcessed then return end
@@ -466,8 +460,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == boostKey then
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if not gameProcessed and input.KeyCode == boostKey and boosting then
 		boosting = false
 	end
 end)
