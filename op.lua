@@ -1,4 +1,5 @@
---Feito por Frawd
+--Feito por Frawd 
+-- Bug fixed btw
 
 
 if not game:IsLoaded() then game.Loaded:Wait() end; print("Game loaded")
@@ -110,7 +111,8 @@ local function updateSliderFromX(x)
 end
 
 local function isWKeyPressed()
-	for _, key in ipairs(UserInputService:GetKeysPressed()) do
+	local keysPressed = UserInputService:GetKeysPressed()
+	for _, key in ipairs(keysPressed) do
 		if key.KeyCode == Enum.KeyCode.W then
 			return true
 		end
@@ -123,8 +125,8 @@ local dragging = false
 
 sliderFrame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
 		updateSliderFromX(input.Position.X)
+		dragging = true
 	end
 end)
 
@@ -296,112 +298,63 @@ local renderConn
 local boostProgress = 0
 local lastVehicle = nil
 
--- Função principal para iniciar o sistema de boost com lógica otimizada
 local function startBoost()
 	local vehicle = getVehicle()
-	if not vehicle then 
-		warn("[startBoost] Veículo não encontrado")
-		return 
-	end
+	if not vehicle then return end
 
-	-- Inicializa velocidade base com validação matemática
+
 	if not baseSpeed or vehicle ~= lastVehicle then
-		local success, result = pcall(function()
-			local vel = vehicle.AssemblyLinearVelocity
-			if not vel then return 0 end
-			
-			-- Calcula velocidade horizontal usando fórmula de magnitude vetorial
-			-- |v| = √(vx² + vz²) para movimento horizontal
-			local horizontalVel = Vector3.new(vel.X, 0, vel.Z)
-			return horizontalVel.Magnitude
-		end)
-		
-		baseSpeed = success and result or 0
+		local vel = vehicle.AssemblyLinearVelocity
+		baseSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
 		lastVehicle = vehicle
 		boostProgress = 0
-		
-		-- Valida velocidade base mínima
-		if baseSpeed < 0.1 then
-			warn("[startBoost] Velocidade base muito baixa:", baseSpeed)
-		end
 	end
 
-	-- Cleanup da conexão anterior para evitar memory leaks
 	if renderConn then
 		renderConn:Disconnect()
-		renderConn = nil
 	end
 
-	-- Loop principal de boost com otimizações de performance
-	renderConn = RunService.Heartbeat:Connect(function(deltaTime)
-		local success, error = pcall(function()
-			local currentVehicle = getVehicle()
-			if not currentVehicle or not currentVehicle.Parent then
-				-- Cleanup automático se veículo não existir
-				boostProgress = 0
-				boostLabel.Text = "Boost: 0%"
-				if renderConn then
-					renderConn:Disconnect()
-					renderConn = nil
-				end
-				return
-			end
+	renderConn = RunService.Heartbeat:Connect(function(dt)
+		local currentVehicle = getVehicle()
+		local shouldBoost = boosting and currentVehicle and currentVehicle.Parent and isWKeyPressed()
+		
 
-			-- Verifica condições para boost com validação robusta
-			local shouldBoost = boosting and isWKeyPressed() and baseSpeed and baseSpeed > 0.1
+		
+		if shouldBoost then
+
+			boostProgress = math.clamp(boostProgress + dt * 2, 0, 1)
 			
-			if shouldBoost then
-				-- Aplicação de boost com progressão suave usando easing
-				-- Fórmula: progress = clamp(progress + dt * rate, 0, 1)
-				-- Rate de 2.0 = 0.5 segundos para boost completo
-				local boostRate = 2.0
-				boostProgress = math.clamp(boostProgress + deltaTime * boostRate, 0, 1)
-				
-				-- Cálculo do percentual de boost atual
-				local currentBoostPercent = boostPercent * boostProgress
-				
-				-- Fórmula de multiplicador de velocidade: 1 + (boost% / 100)
-				-- Exemplo: 50% boost = 1 + (50/100) = 1.5x velocidade
-				local boostMultiplier = 1 + (currentBoostPercent / 100)
-				
-				-- Aplicação da física de boost
+
+			local currentBoostPercent = boostPercent * boostProgress
+			local boostMultiplier = 1 + (currentBoostPercent / 100)
+
+			if baseSpeed then
 				local currentVel = currentVehicle.AssemblyLinearVelocity
 				local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
 				
-				-- Valida magnitude mínima para evitar divisão por zero
-				if horizontalVel.Magnitude > 0.01 then
-					-- Cálculo da velocidade alvo usando física vetorial
+
+				if horizontalVel.Magnitude > 0 then
 					local targetSpeed = baseSpeed * boostMultiplier
 					local boostDirection = horizontalVel.Unit
-					
-					-- Aplicação suave da nova velocidade mantendo componente Y
 					local newVel = boostDirection * targetSpeed
+					
 					currentVehicle.AssemblyLinearVelocity = Vector3.new(
 						newVel.X,
-						currentVel.Y,  -- Preserva velocidade vertical (gravidade, pulos)
+						currentVel.Y,
 						newVel.Z
 					)
 				end
-				
-				-- Atualização da GUI com formatação otimizada
-				boostLabel.Text = string.format("Boost: %d%%", math.floor(currentBoostPercent))
-			else
-				-- Reset do boost com transição suave
-				boostProgress = math.max(boostProgress - deltaTime * 3, 0)  -- Decay mais rápido
-				boostLabel.Text = string.format("Boost: %d%%", math.floor(boostPercent * boostProgress))
-				
-				-- Cleanup quando boost termina completamente
-				if boostProgress <= 0 and renderConn then
-					renderConn:Disconnect()
-					renderConn = nil
-				end
 			end
-		end)
-		
-		-- Tratamento de erros com logging específico
-		if not success then
-			warn("[startBoost] Erro no loop de boost:", error)
-			-- Cleanup de emergência
+			
+
+			boostLabel.Text = "Boost: " .. math.floor(currentBoostPercent) .. "%"
+		else
+
+			boostProgress = 0
+			boostLabel.Text = "Boost: 0%"
+			
+
+			-- Desconectar conexão
 			if renderConn then
 				renderConn:Disconnect()
 				renderConn = nil
@@ -491,59 +444,27 @@ local UserInputTypes = {
 	Gamepad1 = Enum.UserInputType.Gamepad1,
 }
 
-
-local function handleInputBegan(input, gameProcessed)
-	
-	if not input or gameProcessed then return end
-	
-	local success, error = pcall(function()
-		
-		if waitingForKey and (input.UserInputType == UserInputTypes.Keyboard or input.UserInputType == UserInputTypes.Gamepad1) then
-			waitingForKey = false
-			if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
-				boostKey = input.KeyCode
-				keyButton.Text = "Boost Key: " .. (boostKey.Name or tostring(boostKey))
-			end
-			return
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if waitingForKey and (input.UserInputType == UserInputTypes.Keyboard or input.UserInputType == UserInputTypes.Gamepad1) then
+		waitingForKey = false
+		if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+			boostKey = input.KeyCode
+			keyButton.Text = "Boost Key: " .. (boostKey.Name or tostring(boostKey))
 		end
-		
-		
-		local keyCode = input.KeyCode
-		if not keyCode then return end
-		
-		if keyCode == boostKey then
-			print("Boost Key Pressed:", boostKey.Name)
-			boosting = true
-			startBoost()
-		elseif keyCode == Enum.KeyCode.V then
-			toggleGUI()
-		end
-	end)
-	
-
-	if not success then
-		warn("[handleInputBegan] Erro ao processar input:", error)
+		return
 	end
-end
-
-
-local function handleInputEnded(input, gameProcessed)
-
-	if not input or gameProcessed then return end
-	
-	local success, error = pcall(function()
-
-		if input.KeyCode == boostKey and boosting then
-			boosting = false
-		end
-	end)
-	
-	
-	if not success then
-		warn("[handleInputEnded] Erro ao processar input:", error)
+	if gameProcessed then return end
+	if input.KeyCode == boostKey then
+		print("Boost Key Pressed:", boostKey.Name)
+		boosting = true
+		startBoost()
+	elseif input.KeyCode == Enum.KeyCode.V then
+		toggleGUI()
 	end
-end
+end)
 
-
-UserInputService.InputBegan:Connect(handleInputBegan)
-UserInputService.InputEnded:Connect(handleInputEnded)
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+	if not gameProcessed and input.KeyCode == boostKey and boosting then
+		boosting = false
+	end
+end)
