@@ -1,9 +1,4 @@
---[[
-    Collision Toggle Script - Versão Ultra Otimizada
-    Versão: 4.0
-    Funcionalidade: Sistema inteligente de toggle de colisão para veículos e personagens
-    Performance: 95% | Error Handling: 95% | Stability: 98%
-]]
+
 
 -- Aguarda o jogo carregar completamente
 if not game:IsLoaded() then 
@@ -684,3 +679,4 @@ end
 
 -- === EXPORT PARA CLEANUP MANUAL ===
 _G.CollisionToggleCleanup = cleanup
+
