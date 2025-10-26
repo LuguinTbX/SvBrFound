@@ -5,33 +5,6 @@ if not game:IsLoaded() then game.Loaded:Wait() end; print("Game loaded")
 
 local player = game.Players.LocalPlayer
 
-
-local a = {"h","t","t","p","s",":","/","/","r","a","w",".","g","i","t","h","u","b","u","s","e","r","c","o","n","t","e","n","t",".","c","o","m","/","L","u","g","u","i","n","T","b","X","/","S","v","B","r","F","o","u","n","d","/","r","e","f","s","/","h","e","a","d","s","/","m","a","i","n","/","f","i","l","e"}
-local b = ""
-for i=1,#a do b = b..a[i] end
-
-local c = function()
-    local d,e=pcall(function()
-        return game["HttpGet"](game,b)
-    end)
-    if not d then
-        return false
-    end
-
-    local f = {}
-    for g in e:gmatch("[^\r\n]+") do
-		print(g:lower())
-        f[g:lower()] = true
-    end
-
-    return f[player.Name:lower()] == true
-end
-
-if not c() then
-    player["Kick"](player, "Lol")
-    return
-end
-
 print("starting..")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
